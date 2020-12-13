@@ -16,7 +16,7 @@ struct point {
 class Cilindr {
 public:
     Cilindr(int radius, int number_of_points, int height,
-            int center_x, int center_y, int center_z, float angle_speed, int z_plate,
+            int center_z, float angle_speed, int z_plate,
             int padding_x = 10, int padding_y = 10, int point_radius = 2);
     
     cv::Mat GetNextPhoto();

@@ -17,6 +17,16 @@ public:
   Solver(): 
   _solved(false) {};
 
+  void Reset() {
+    _solved = false;  
+    _imgs.clear();
+    _H.clear();
+    _Z.clear();
+    _angles.clear();
+    _angle_speed.clear();
+    _z_plate.clear();
+  }
+
   cv::Mat AddImage(const cv::Mat &img) {
     if (_imgs.size() < 3) {
       _imgs.push_back(cv::Mat());
@@ -28,14 +38,16 @@ public:
       img.copyTo(_imgs[2]);
       
       cv::Mat tmp_img;
+      UpdateAll(_imgs[2]);
+      
+
       _imgs[2].copyTo(tmp_img);
-      if (!_solved)
-        Solve().copyTo(tmp_img);
+      Solve().copyTo(tmp_img);
+      
       if (_solved) {
         putText(tmp_img, std::to_string(mean(_angle_speed)), cv::Point(30,30), 
             cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0), 1, 0);
-        EmphasizePoint(tmp_img, GetPoint(_H, _angles[0], _imgs[2].cols, _imgs[2].rows), 0).copyTo(tmp_img);
-        _angles[0] += mean(_angle_speed) * std::acos(-1.0) / 180;
+        DrawALL(tmp_img);
       }
 
 
@@ -43,13 +55,60 @@ public:
     }
     return img;
   }
+
+
 private:
-  pt GetPoint(float H, float alpha, int w, int h) {
+  void DrawALL(cv::Mat &img) {
+    for (size_t i = 0; i < _angle_speed.size(); ++i)
+      EmphasizePoint(img, GetPoint(_H[i], _Z[i], _angles[i], _z_plate[i]), 0).copyTo(img);
+  }
+
+  void UpdateAll(const cv::Mat &img) {
+    for (size_t i = 0; i < _angles.size(); ++i)
+      _angles[i] += _angle_speed[i] * std::acos(-1.f) / 180;
+    
+    int r = 4;
+    std::vector<int> trash;
+    
+    for (size_t i = 0; i < _angle_speed.size(); ++i) {
+      pt p = GetPoint(_H[i], _Z[i], _angles[i], _z_plate[i]);
+      bool f = true;
+      for (size_t x = std::max(p.x - r, 0); x < std::min(p.x + r, img.cols) && f; ++x)
+        for (size_t y = std::max(p.y - r, 0); y < std::min(p.y + r, img.rows) && f; ++y)
+          f &= img.at<uint8_t>(y, x) > 0;
+      if (f)
+        trash.push_back(i);
+    }
+
+    for (int stride=0, i = 0, j = 0; i < _angles.size() - stride; ++i) {
+      if (j < trash.size() && i + stride == trash[j]) {
+        j += 1;
+        stride += 1;
+        i -= 1;
+      } else {
+        _z_plate[i] = _z_plate[i + stride];
+        _H[i] = _H[i + stride];
+        _Z[i] = _Z[i + stride];
+        _angles[i] = _angles[i + stride];
+        _angle_speed[i] = _angle_speed[i + stride];
+      }
+    }
+
+    _z_plate.resize(_z_plate.size() - trash.size());
+    _H.resize(_H.size() - trash.size());
+    _Z.resize(_Z.size() - trash.size());
+    _angles.resize(_angles.size() - trash.size());
+    _angle_speed.resize(_angle_speed.size() - trash.size());
+
+    _solved = _z_plate.size();
+  }
+
+  pt GetPoint(float H, float Z, float alpha, float z_plate) {
     float new_x = std::cos(alpha);
-    float new_z = _Z - std::sin(alpha); 
+    float new_z = Z - std::sin(alpha); 
     float new_y = H;
-    int p_x = std::round(new_x * _z_plate / new_z)  + w / 2;
-    int p_y = std::round(new_y * _z_plate / new_z)  + h / 2;
+    int p_x = std::round(new_x * z_plate / new_z)  + _imgs[2].cols / 2;
+    int p_y = std::round(new_y * z_plate / new_z)  + _imgs[2].rows / 2;
     return {p_x, p_y};
   }
 
@@ -130,6 +189,7 @@ private:
 
     float alpha = 0.0;
     bool is_ok=false;
+    float z_plate;
 
     for (size_t i = 1; i < 3; ++i) {
       if (p[i].x * p[0].y != 0) {
@@ -137,7 +197,7 @@ private:
         if (e * std::sin(rad_speed * i) > 1e-5) {
           alpha = std::atan((e * std::cos(rad_speed * i) - 1) /
           (e * std::sin(rad_speed * i)));
-          _z_plate = (std::sin(alpha + rad_speed * i) - std::sin(alpha)) / (std::cos(alpha) / p[i].x - std::cos(alpha) / p[0].x);
+          z_plate = (std::sin(alpha + rad_speed * i) - std::sin(alpha)) / (std::cos(alpha) / p[i].x - std::cos(alpha) / p[0].x);
           is_ok = true;
         }
       }
@@ -149,16 +209,19 @@ private:
     if (std::sin(alpha + rad_speed * 2) == 0)
       return false;
 
-    _H = y2 * std::cos(alpha + rad_speed * 2) / x2;
-    _Z = std::cos(alpha + rad_speed * 2) * _z_plate / x2 + std::sin(alpha + rad_speed * 2);
+    float H = y2 * std::cos(alpha + rad_speed * 2) / x2;
+    float Z = std::cos(alpha + rad_speed * 2) * z_plate / x2 + std::sin(alpha + rad_speed * 2);
 
-    if (_Z <= 1) {
-      fprintf(stderr, "%f\n", _Z);
+    if (Z <= 1) {
       return false; 
     }
-    
+
     _angles.push_back(alpha + rad_speed * 2);
-    printf("%f %f %f %f\n", mean(_angles), _H, _Z, _z_plate);
+    _H.push_back(H);
+    _angle_speed.push_back(speed);
+    _Z.push_back(Z);
+    _z_plate.push_back(z_plate);
+    printf("%f %f %f %f\n", mean(_angles), H, Z, z_plate);
 
     return true;
   }
@@ -201,7 +264,6 @@ private:
     for (size_t i = 0, j = 0, k = 0; i < pt_fr; k += 1, j += k / pt_fr, i += j / pt_fr, k %=pt_fr, j %= pt_fr) {
       float speed;
       if (GetAngleSpeed(speed, {up[0][i], up[1][j], up[2][k]}, _imgs[2].cols, _imgs[2].rows)) {
-        _angle_speed.push_back(speed);
         EmphasizePoint(draw_img, up[2][k], 0).copyTo(draw_img);
         break;
       }
@@ -214,16 +276,16 @@ private:
 public:
   bool _solved;  
   std::vector<cv::Mat> _imgs;
-  float _H;
-  float _Z;
+  std::vector<float> _H;
+  std::vector<float> _Z;
   std::vector<float> _angles;
-  std::vector<float> _heights;
+  std::vector<int> _iteration;
   std::vector<float> _angle_speed;
-  float _z_plate;
+  std::vector<float> _z_plate;
 };
 
 int main() {
-    Cilindr a(50, 2, 100, 0, 0, 100, 10, 90, 40, 40, 1);
+    Cilindr a(50, 50, 100, 100, 10, 90, 40, 40, 1);
     Solver s;
     for (size_t i = 0; i < 450; ++i) {
       cv::Mat im = a.GetNextPhoto();

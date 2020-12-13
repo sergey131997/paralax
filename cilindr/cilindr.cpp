@@ -5,9 +5,9 @@
 #include "./cilindr.h"
 
 Cilindr::Cilindr(int radius, int number_of_points, int height,
-            int center_x, int center_y, int center_z, float angle_speed, int z_plate,
+            int center_z, float angle_speed, int z_plate,
             int padding_x, int padding_y, int paint_radius):
-            _radius(radius), _height(height), _x(center_x), _y(center_y),
+            _radius(radius), _height(height), _x(0), _y(0),
             _z(center_z), _z_plate(z_plate), _angle_speed(angle_speed), _angle(0),
             _point_radius(paint_radius) {
     std::random_device devId;
