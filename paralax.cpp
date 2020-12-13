@@ -14,8 +14,8 @@ struct pt {
 
 class Solver {
 public:
-  Solver(int z_plate): 
-  _solved(false), _z_plate(z_plate) {};
+  Solver(): 
+  _solved(false) {};
 
   cv::Mat AddImage(const cv::Mat &img) {
     if (_imgs.size() < 3) {
@@ -45,11 +45,6 @@ public:
   }
 private:
   pt GetPoint(float H, float alpha, int w, int h) {
-    // _H = y2 * std::cos(alpha[1] + rad_speed * 2) / x2;
-    // _Z = (std::cos(alpha[1] + rad_speed * 2) / x2 + std::sin(alpha[1]));
-    printf("%f %f %f\n", alpha, _H, _Z);
-
-
     float new_x = std::cos(alpha);
     float new_z = _Z - std::sin(alpha); 
     float new_y = H;
@@ -139,9 +134,10 @@ private:
     for (size_t i = 1; i < 3; ++i) {
       if (p[i].x * p[0].y != 0) {
         float e = (p[0].x * p[i].y) / (p[i].x * p[0].y);
-        if (e * std::sin(-rad_speed * i) > 1e-5) {
+        if (e * std::sin(rad_speed * i) > 1e-5) {
           alpha = std::atan((e * std::cos(rad_speed * i) - 1) /
           (e * std::sin(rad_speed * i)));
+          _z_plate = (std::sin(alpha + rad_speed * i) - std::sin(alpha)) / (std::cos(alpha) / p[i].x - std::cos(alpha) / p[0].x);
           is_ok = true;
         }
       }
@@ -162,7 +158,7 @@ private:
     }
     
     _angles.push_back(alpha + rad_speed * 2);
-    printf("%f %f %f\n", mean(_angles), _H, _Z);
+    printf("%f %f %f %f\n", mean(_angles), _H, _Z, _z_plate);
 
     return true;
   }
@@ -191,7 +187,7 @@ private:
 
   cv::Mat Solve() {
     std::vector<pt> up[3];
-    int pt_fr = 5;
+    int pt_fr = 1;
     
     cv::Mat draw_img;
     _imgs[2].copyTo(draw_img);   
@@ -227,9 +223,8 @@ public:
 };
 
 int main() {
-    size_t z_plate = 90;
-    Cilindr a(50, 100, 100, 0, 0, 100, 10, z_plate, 40, 40, 1);
-    Solver s(z_plate);
+    Cilindr a(50, 2, 100, 0, 0, 100, 10, 90, 40, 40, 1);
+    Solver s;
     for (size_t i = 0; i < 450; ++i) {
       cv::Mat im = a.GetNextPhoto();
       std::string name = "/mnt/c/Users/1/Desktop/1/test" + std::to_string(i) + ".png";
