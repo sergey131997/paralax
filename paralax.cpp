@@ -14,11 +14,11 @@ struct pt {
 
 class Solver {
 public:
-  Solver(): 
-  _solved(false) {};
+  Solver():
+    _solved(false) {};
 
   void Reset() {
-    _solved = false;  
+    _solved = false;
     _imgs.clear();
     _H.clear();
     _Z.clear();
@@ -45,8 +45,8 @@ public:
       Solve().copyTo(tmp_img);
       
       if (_solved) {
-        putText(tmp_img, std::to_string(mean(_angle_speed)), cv::Point(30,30), 
-            cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0), 1, 0);
+        putText(tmp_img, std::to_string(mean(_angle_speed)), cv::Point(30,30),
+                cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0), 1, 0);
         DrawALL(tmp_img);
       }
 
@@ -59,15 +59,18 @@ public:
 
 private:
   void DrawALL(cv::Mat &img) {
-    for (size_t i = 0; i < _angle_speed.size(); ++i)
+    for (size_t i = 0; i < _angle_speed.size(); ++i) {
       EmphasizePoint(img, GetPoint(_H[i], _Z[i], _angles[i], _z_plate[i]), 0).copyTo(img);
+      for (float a = 0; a < 2 * std::acos(-1.0); a += std::acos(-1.0) / 180)
+        EmphasizePoint(img, GetPoint(_H[i], _Z[i], _angles[i] + a, _z_plate[i]), 0, true).copyTo(img);
+    }
   }
 
   void UpdateAll(const cv::Mat &img) {
     for (size_t i = 0; i < _angles.size(); ++i)
       _angles[i] += _angle_speed[i] * std::acos(-1.f) / 180;
     
-    int r = 4;
+    int r = 20;
     std::vector<int> trash;
     
     for (size_t i = 0; i < _angle_speed.size(); ++i) {
@@ -105,7 +108,7 @@ private:
 
   pt GetPoint(float H, float Z, float alpha, float z_plate) {
     float new_x = std::cos(alpha);
-    float new_z = Z - std::sin(alpha); 
+    float new_z = Z - std::sin(alpha);
     float new_y = H;
     int p_x = std::round(new_x * z_plate / new_z)  + _imgs[2].cols / 2;
     int p_y = std::round(new_y * z_plate / new_z)  + _imgs[2].rows / 2;
@@ -129,7 +132,7 @@ private:
     size_t c = 0;
     while (c != p.size()) {
       pt &p_cur = p[c++];
-      if (cur.at<uint8_t>(p_cur.y, p_cur.x) != 0) 
+      if (cur.at<uint8_t>(p_cur.y, p_cur.x) != 0)
         continue;
       cur.at<uint8_t>(p_cur.y, p_cur.x) = 255;
       for (size_t i = 0; i < 4; ++i) {
@@ -140,7 +143,7 @@ private:
         if (cur.at<uint8_t>(p_cur.y + diry[i], p_cur.x + dirx[i]) == 0)
           p.push_back({p_cur.x + dirx[i], p_cur.y + diry[i]});
       }
-    } 
+    }
   }
 
   std::vector<pt> FindTop(const cv::Mat &img, size_t n) {
@@ -149,11 +152,11 @@ private:
     std::vector<pt> up;
 
     for (int y = 0; up.size() < n && y < img.rows; ++y)
-        for (int x = 0; x < img.cols && up.size() < n; ++x) 
-          if (cur.at<uint8_t>(y, x) == 0) {
-            up.push_back(pt({x, y}));
-            CleanPoint(cur, pt({x, y}));
-          }
+      for (int x = 0; x < img.cols && up.size() < n; ++x)
+        if (cur.at<uint8_t>(y, x) == 0) {
+          up.push_back(pt({x, y}));
+          CleanPoint(cur, pt({x, y}));
+        }
     
     return up;
   }
@@ -193,10 +196,10 @@ private:
 
     for (size_t i = 1; i < 3; ++i) {
       if (p[i].x * p[0].y != 0) {
-        float e = (p[0].x * p[i].y) / (p[i].x * p[0].y);
+        float e = float(p[0].x * p[i].y) / (p[i].x * p[0].y);
         if (e * std::sin(rad_speed * i) > 1e-5) {
           alpha = std::atan((e * std::cos(rad_speed * i) - 1) /
-          (e * std::sin(rad_speed * i)));
+                            (e * std::sin(rad_speed * i)));
           z_plate = (std::sin(alpha + rad_speed * i) - std::sin(alpha)) / (std::cos(alpha) / p[i].x - std::cos(alpha) / p[0].x);
           is_ok = true;
         }
@@ -212,9 +215,9 @@ private:
     float H = y2 * std::cos(alpha + rad_speed * 2) / x2;
     float Z = std::cos(alpha + rad_speed * 2) * z_plate / x2 + std::sin(alpha + rad_speed * 2);
 
-    if (Z <= 1) {
-      return false; 
-    }
+    //    if (Z <= 1) {
+    //      return false;
+    //    }
 
     _angles.push_back(alpha + rad_speed * 2);
     _H.push_back(H);
@@ -226,37 +229,45 @@ private:
     return true;
   }
 
-  cv::Mat EmphasizePoint(const cv::Mat image, pt p, uint8_t color) {
+  cv::Mat EmphasizePoint(const cv::Mat image, pt p, uint8_t color, bool only_tracer = false) {
     cv::Mat im_to_draw;
     image.copyTo(im_to_draw);
-    for (size_t x = p.x - 10; x < p.x + 10; ++x)
-      for (size_t y = p.y - 10; y < p.y - 8; ++y)
-        im_to_draw.at<uint8_t>(y, x) = color;
+    if (!only_tracer) {
+      for (size_t x = p.x - 10; x < p.x + 10; ++x)
+        for (size_t y = p.y - 10; y < p.y - 8; ++y)
+          im_to_draw.at<uint8_t>(y, x) = color;
 
-    for (size_t x = p.x - 10; x < p.x + 10; ++x)
-      for (size_t y = p.y + 8; y < p.y + 10; ++y)
-        im_to_draw.at<uint8_t>(y, x) = color;
+      for (size_t x = p.x - 10; x < p.x + 10; ++x)
+        for (size_t y = p.y + 8; y < p.y + 10; ++y)
+          im_to_draw.at<uint8_t>(y, x) = color;
 
-    for (size_t y = p.y - 10; y < p.y + 10; ++y)
-      for (size_t x = p.x + 8; x < p.x + 10; ++x)
-        im_to_draw.at<uint8_t>(y, x) = color;
+      for (size_t y = p.y - 10; y < p.y + 10; ++y)
+        for (size_t x = p.x + 8; x < p.x + 10; ++x)
+          im_to_draw.at<uint8_t>(y, x) = color;
 
-    for (size_t y = p.y - 10; y < p.y + 10; ++y)
-      for (size_t x = p.x - 10; x < p.x - 8; ++x)
-        im_to_draw.at<uint8_t>(y, x) = color;
+      for (size_t y = p.y - 10; y < p.y + 10; ++y)
+        for (size_t x = p.x - 10; x < p.x - 8; ++x)
+          im_to_draw.at<uint8_t>(y, x) = color;
+    }
+
+
+    if (p.y >= 0 && p.y < image.rows &&
+        p.x >= 0 && p.x < image.cols)
+      im_to_draw.at<uint8_t>(p.y, p.x) = 200;
+
 
     return im_to_draw;
   }
 
   cv::Mat Solve() {
     std::vector<pt> up[3];
-    int pt_fr = 1;
+    int pt_fr = 5;
     
     cv::Mat draw_img;
-    _imgs[2].copyTo(draw_img);   
+    _imgs[2].copyTo(draw_img);
 
     for (size_t i = 0; i < 3; ++i) {
-      up[i] = FindTop(_imgs[i], pt_fr);    
+      up[i] = FindTop(_imgs[i], pt_fr);
     }
     EmphasizePoint(draw_img, up[2][0], 120).copyTo(draw_img);
 
@@ -265,7 +276,6 @@ private:
       float speed;
       if (GetAngleSpeed(speed, {up[0][i], up[1][j], up[2][k]}, _imgs[2].cols, _imgs[2].rows)) {
         EmphasizePoint(draw_img, up[2][k], 0).copyTo(draw_img);
-        break;
       }
     }
 
@@ -274,7 +284,7 @@ private:
   }
 
 public:
-  bool _solved;  
+  bool _solved;
   std::vector<cv::Mat> _imgs;
   std::vector<float> _H;
   std::vector<float> _Z;
@@ -285,14 +295,15 @@ public:
 };
 
 int main() {
-    Cilindr a(50, 50, 100, 100, 10, 90, 40, 40, 1);
-    Solver s;
-    for (size_t i = 0; i < 450; ++i) {
-      cv::Mat im = a.GetNextPhoto();
-      std::string name = "/mnt/c/Users/1/Desktop/1/test" + std::to_string(i) + ".png";
-      s.AddImage(im).copyTo(im);
-      cv::imwrite(name.c_str(), im);
-      // if (s._solved)
-      //   return 0;
-    }
+  Cilindr a(50, 100, 100, 100, 15, 400, 40, 40, 2);
+  Solver s;
+  for (size_t i = 0; i < 60000; ++i) {
+    cv::Mat im = a.GetNextPhoto();
+    std::string name = "/tmp/test/" + std::to_string(i) + ".png";
+    s.AddImage(im).copyTo(im);
+    cv::imshow("sd", im);
+    cv::waitKey(100);
+    // if (s._solved)
+    //   return 0;
+  }
 }
