@@ -12,4 +12,4 @@ target_include_directories(paralax PUBLIC
                           "${PROJECT_BINARY_DIR}"
                           "${PROJECT_SOURCE_DIR}/cilindr")
 
-target_link_libraries(paralax cilindr ${OpenCV_LIBS})
+target_link_libraries(paralax cilindr ${OpenCV_LIBRARIES})
