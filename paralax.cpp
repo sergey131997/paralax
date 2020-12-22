@@ -92,7 +92,7 @@ private:
     for (size_t i = 0; i < _angles.size(); ++i)
       _angles[i] += _angle_speed[i] * std::acos(-1.f) / 180;
     
-    int r = 3000;
+    int r = 300;
     std::vector<int> trash;
     
     for (size_t i = 0; i < _angle_speed.size(); ++i) {
@@ -219,32 +219,34 @@ private:
     for (size_t i = 1; i < 3; ++i) {
       if (p[i].x * p[0].y != 0) {
         float e = float(p[0].x * p[i].y) / float(p[i].x * p[0].y);
-        if (fabs(e * std::sin(rad_speed * i)) > 1e-5) {
+        if (std::fabs(e * std::sin(rad_speed * i)) > 1e-5) {
           alpha = std::atan((e * std::cos(rad_speed * i) - 1) /
                             (e * std::sin(rad_speed * i)));
-          z_plate = (std::sin(alpha + rad_speed * i) - std::sin(alpha)) / (std::cos(alpha) / p[i].x - std::cos(alpha) / p[0].x);
+          z_plate = (std::sin(alpha + rad_speed * i) - std::sin(alpha)) / (std::cos(alpha) / p[0].x - std::cos(alpha + rad_speed * i) / p[i].x);
           is_ok = true;
         }
       }
     }
 
-    if (!is_ok)
-      return false;
-
-    if (std::sin(alpha + rad_speed * 2) == 0)
-      return false;
-
-    float H = y2 * std::cos(alpha + rad_speed * 2) / x2;
-    float Z = std::cos(alpha + rad_speed * 2) * z_plate / x2 + std::sin(alpha + rad_speed * 2);
-
-//    if (Z <= 1) {
-//      return false;
-//    }
-
-    if (fabs(fabs(GetPoint(H, Z, 0, z_plate).x - _imgs[2].cols / 2) - _z_max) > 1) {
+    if (!is_ok) {
+      printf("err\n");
       return false;
     }
-    printf("CO %d %f\n",GetPoint(H, Z, 0, z_plate).x - _imgs[2].cols / 2, _z_max);
+
+    if (std::sin(alpha) == 0) {
+      printf("err1\n");
+      return false;
+    }
+
+    float H = y0 * std::cos(alpha) / x0;
+    float Z = std::cos(alpha) * z_plate / x0 + std::sin(alpha);
+
+    if (fabs(fabs(GetPoint(H, Z, 0, z_plate).x - _imgs[2].cols / 2) - _z_max) > 100) {
+      printf("err3 %f\n", speed);
+      return false;
+    }
+
+//    printf("CO %d %f\n",GetPoint(H, Z, 0, z_plate).x - _imgs[2].cols / 2, _z_max);
 
     _angles.push_back(alpha + rad_speed * 2);
     _H.push_back(H);
@@ -323,7 +325,7 @@ public:
 };
 
 int main() {
-  Cilindr a(50, 1, 100, 100, -10, 400, 40, 40, 2);
+  Cilindr a(50, 1, 100, 100, 10, 400, 40, 40, 2);
   Solver s;
   for (size_t i = 0; i < 60000; ++i) {
     cv::Mat im = a.GetNextPhoto();
