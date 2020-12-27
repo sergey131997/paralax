@@ -86,13 +86,14 @@ private:
       for (float a = 0; a < 2 * std::acos(-1.0); a += std::acos(-1.0) / 180)
         EmphasizePoint(img, GetPoint(_H[i], _Z[i], _angles[i] + a, _z_plate[i]), 0, true).copyTo(img);
     }
+    
   }
 
   void UpdateAll(const cv::Mat &img) {
     for (size_t i = 0; i < _angles.size(); ++i)
       _angles[i] += _angle_speed[i] * std::acos(-1.f) / 180;
     
-    int r = 300;
+    int r = 10;
     std::vector<int> trash;
     
     for (size_t i = 0; i < _angle_speed.size(); ++i) {
@@ -241,7 +242,7 @@ private:
     float H = y0 * std::cos(alpha) / x0;
     float Z = std::cos(alpha) * z_plate / x0 + std::sin(alpha);
 
-    if (fabs(fabs(GetPoint(H, Z, 0, z_plate).x - _imgs[2].cols / 2) - _z_max) > 100) {
+    if (fabs(fabs(GetPoint(H, Z, std::asin(1.0 / Z), z_plate).x - _imgs[2].cols / 2) - _z_max) > 3) {
       printf("err3 %f\n", speed);
       return false;
     }
@@ -325,7 +326,7 @@ public:
 };
 
 int main() {
-  Cilindr a(50, 1, 100, 100, 10, 400, 40, 40, 2);
+  Cilindr a(50, 100, 100, 100, -5, 400, 40, 40, 2);
   Solver s;
   for (size_t i = 0; i < 60000; ++i) {
     cv::Mat im = a.GetNextPhoto();
