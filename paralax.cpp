@@ -242,7 +242,7 @@ private:
     float H = y0 * std::cos(alpha) / x0;
     float Z = std::cos(alpha) * z_plate / x0 + std::sin(alpha);
 
-    if (fabs(fabs(GetPoint(H, Z, std::asin(1.0 / Z), z_plate).x - _imgs[2].cols / 2) - _z_max) > 3) {
+    if (fabs(fabs(GetPoint(H, Z, std::asin(1.0 / Z), z_plate).x - _imgs[2].cols / 2) - _z_max) > 5) {
       printf("err3 %f\n", speed);
       return false;
     }
@@ -326,7 +326,7 @@ public:
 };
 
 int main() {
-  Cilindr a(50, 100, 100, 100, -5, 400, 40, 40, 2);
+  Cilindr a(50, 100, 100, 100, -13, 400, 40, 40, 2);
   Solver s;
   for (size_t i = 0; i < 60000; ++i) {
     cv::Mat im = a.GetNextPhoto();

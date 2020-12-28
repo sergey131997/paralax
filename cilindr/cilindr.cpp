@@ -26,7 +26,7 @@ Cilindr::Cilindr(int radius, int number_of_points, int height,
     _y_down = -float(_y + height / 2) * _z_plate / (_z - radius) - padding_y;
     int y_up = -float(_y - height / 2) * _z_plate / (_z - radius) + padding_y;
 
-    _plate = cv::Mat(x_right - _x_left, y_up - _y_down, CV_8UC1, 255);
+    _plate = cv::Mat(y_up - _y_down, x_right - _x_left, CV_8UC1, 255);
 }
 
 inline float Deg2Rad(float deg) {
